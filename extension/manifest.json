@@ -1,0 +1,17 @@
+{
+  "manifest_version": 2,
+  "name": "Youtube Music Discord Rich Presence",
+  "version": "1.0",
+
+  "description": "A Discord rich presence client for Youtube Music playstate",
+
+  "content_scripts": [
+    {
+      "matches": ["*://music.youtube.com/*"],
+      "js": ["index.js"]
+    }
+  ],
+  "permissions": [
+    "<all_urls>"
+  ]
+}
