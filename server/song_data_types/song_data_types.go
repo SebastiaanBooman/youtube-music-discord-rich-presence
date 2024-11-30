@@ -19,3 +19,14 @@ type SongPresenceInformation struct {
 	StartTime     time.Time
 	EndTime       time.Time
 }
+
+// Discord rich presence specification requires fields to be at least two characters long
+func (songData *SongData) AppendNullCharacterToDataStrings() {
+	songData.Artist = songData.Artist + "\x00"
+	songData.Title = songData.Title + "\x00"
+
+	// Not all YouTube music videos contain album metadata
+	if len(songData.Album) == 1 {
+		songData.Album = songData.Album + "\x00"
+	}
+}

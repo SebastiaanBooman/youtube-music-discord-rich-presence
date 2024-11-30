@@ -53,6 +53,8 @@ func (server *Server) ReceiveSongData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	songData.AppendNullCharacterToDataStrings()
+
 	// This covers a limitation regarding the MutationObserver used in the web extension.
 	// When automatically running new video (chaining videos), multiple events are fired
 	// Due to this the extension sends multiple API calls in quick succession.
