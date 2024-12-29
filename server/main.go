@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	server, err := api.NewServer()
+	server, err := api.CreateServer()
 	if err != nil {
 		panic(err)
 	}
