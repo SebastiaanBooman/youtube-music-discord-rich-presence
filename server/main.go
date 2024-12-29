@@ -6,12 +6,12 @@ import (
 )
 
 func main() {
-	server, err := api.CreateServer()
+	server := api.CreateServer()
+	http.HandleFunc("/song-data", server.ReceiveSongData)
+	err := http.ListenAndServe(
+		":8080",
+		nil)
 	if err != nil {
 		panic(err)
 	}
-	http.HandleFunc("/song-data", server.ReceiveSongData)
-	http.ListenAndServe(
-		":8080",
-		nil)
 }

@@ -13,31 +13,31 @@ import (
 	"YoutubeMusicRichPresence/song_data_types"
 )
 
+const (
+	PresenceKillTimeout = time.Second * 15
+)
+
 type Server struct {
 	SongPresenceInformation songdatatypes.SongPresenceInformation
 	LastUpdatedTime         time.Time
 	UpdatePendingMutex      sync.Mutex
 	SongDataMutex           sync.Mutex
+	stopTimer               *time.Timer
+	presenceActive          bool
 }
 
-// Establishes Discord connection and creates Server
-func CreateServer() (*Server, error) {
-	err := discordrpc.Login()
-	if err != nil {
-		return nil, err
-	}
-
-	server := &Server{
+func CreateServer() *Server {
+	return &Server{
 		LastUpdatedTime:         time.Now().Add(time.Duration(-15 * time.Second)),
 		SongPresenceInformation: songdatatypes.SongPresenceInformation{},
 	}
-	return server, nil
 }
 
 func (server *Server) ReceiveSongData(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Expected a POST request", http.StatusBadRequest)
 	}
+
 	updateTime := time.Now()
 
 	var songData songdatatypes.SongData
@@ -53,8 +53,6 @@ func (server *Server) ReceiveSongData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	songData.AppendNullCharacterToDataStrings()
-
 	// This covers a limitation regarding the MutationObserver used in the web extension.
 	// When automatically running new video (chaining videos), multiple events are fired
 	// Due to this the extension sends multiple API calls in quick succession.
@@ -63,6 +61,19 @@ func (server *Server) ReceiveSongData(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Time is empty", http.StatusBadRequest)
 		return
 	}
+
+	// Do not terminate the ipc connection if continued playing
+	if server.stopTimer != nil {
+		server.stopTimer.Stop()
+		server.stopTimer = nil
+	}
+
+	if !server.presenceActive {
+		discordrpc.Login()
+		server.presenceActive = true
+	}
+
+	songData.AppendNullCharacterToDataStrings()
 
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -98,7 +109,15 @@ func (server *Server) ReceiveSongData(w http.ResponseWriter, r *http.Request) {
 		EndTime:       updateTime.Add(timeLeft),
 	}
 	server.SongDataMutex.Unlock()
-	server.updateRichPresence(timeToWait)
+	server.UpdateRichPresence(timeToWait)
+
+	// Kill the rich presence if no new song has been playing for 15 seconds and paused
+	if !songData.Playing {
+		server.stopTimer = time.AfterFunc(PresenceKillTimeout, func() {
+			server.presenceActive = false
+			discordrpc.Logout()
+		})
+	}
 
 	fmt.Fprint(w, "Processed song data succesfully")
 }
@@ -142,10 +161,12 @@ func convertTimeDataToSeconds(timeData string) (time.Duration, error) {
 		}
 		totalSeconds += (convertedInt * conversionArray[i+startingIndex])
 	}
+
 	return time.Duration(totalSeconds) * time.Second, nil
 }
 
-func (server *Server) updateRichPresence(waitTime time.Duration) {
+// TODO: Probably do not need to handle waiting for `waitTime`, as discord supposedly queues statuses
+func (server *Server) UpdateRichPresence(waitTime time.Duration) {
 	// TODO: negating this does not acquire the lock ?
 	if server.UpdatePendingMutex.TryLock() {
 		time.Sleep(waitTime)

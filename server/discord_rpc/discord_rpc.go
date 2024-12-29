@@ -13,6 +13,11 @@ func Login() error {
 	return nil
 }
 
+func Logout() error {
+	client.Logout()
+	return nil
+}
+
 func SetSongActivity(songDataInformation songdatatypes.SongPresenceInformation) {
 	err := client.SetActivity(client.Activity{
 		State:      songDataInformation.SongData.Artist,
