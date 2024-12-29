@@ -21,7 +21,7 @@ type Server struct {
 }
 
 // Establishes Discord connection and creates Server
-func NewServer() (*Server, error) {
+func CreateServer() (*Server, error) {
 	err := discordrpc.Login()
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func (server *Server) ReceiveSongData(w http.ResponseWriter, r *http.Request) {
 	smallImageKey := "mozilla-firefox"
 	smallText := "Mozilla Firefox"
 	if !songData.Playing {
-		smallImageKey = "pause-button-icon"
+		smallImageKey = "play-button-icon"
 		smallText = "paused"
 	}
 
