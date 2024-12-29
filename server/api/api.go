@@ -19,16 +19,14 @@ const (
 
 type Server struct {
 	SongPresenceInformation songdatatypes.SongPresenceInformation
-	LastUpdatedTime         time.Time
 	UpdatePendingMutex      sync.Mutex
 	SongDataMutex           sync.Mutex
-	stopTimer               *time.Timer
-	presenceActive          bool
+	StopTimer               *time.Timer
+	PresenceActive          bool
 }
 
 func CreateServer() *Server {
 	return &Server{
-		LastUpdatedTime:         time.Now().Add(time.Duration(-15 * time.Second)),
 		SongPresenceInformation: songdatatypes.SongPresenceInformation{},
 	}
 }
@@ -63,14 +61,14 @@ func (server *Server) ReceiveSongData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Do not terminate the ipc connection if continued playing
-	if server.stopTimer != nil {
-		server.stopTimer.Stop()
-		server.stopTimer = nil
+	if server.StopTimer != nil {
+		server.StopTimer.Stop()
+		server.StopTimer = nil
 	}
 
-	if !server.presenceActive {
+	if !server.PresenceActive {
 		discordrpc.Login()
-		server.presenceActive = true
+		server.PresenceActive = true
 	}
 
 	songData.AppendNullCharacterToDataStrings()
@@ -89,7 +87,6 @@ func (server *Server) ReceiveSongData(w http.ResponseWriter, r *http.Request) {
 	var timeLeft time.Duration = totalSeconds - elapsedSeconds
 
 	server.SongDataMutex.Lock()
-	server.LastUpdatedTime = updateTime
 	server.SongPresenceInformation = songdatatypes.SongPresenceInformation{
 		SongData:      songData,
 		SmallImageKey: smallImageKey,
@@ -102,8 +99,8 @@ func (server *Server) ReceiveSongData(w http.ResponseWriter, r *http.Request) {
 
 	// Kill the rich presence if no new song has been playing for 15 seconds and paused
 	if !songData.Playing {
-		server.stopTimer = time.AfterFunc(PresenceKillTimeout, func() {
-			server.presenceActive = false
+		server.StopTimer = time.AfterFunc(PresenceKillTimeout, func() {
+			server.PresenceActive = false
 			discordrpc.Logout()
 		})
 	}
