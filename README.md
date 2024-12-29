@@ -21,9 +21,6 @@ Concise Firefox web extension and Golang server for updating your Discord activi
 - The web extension uses a `MutationObserver` to send updates to the server when the "pause-play" button changes
     (indicating a pause, seek-forward, seek-backward or a new song starting event)
 
-> As Discord limits rich presence updates with a 15 second cooldown, the server keeps track of the update time for an optimal experience.
-> This is opposed to some other versions of rich presences which poll the browser on an interval instead, resulting in an unresponsive update experience
-
 ## Considerations
 - Why not connect to Discord directly through the Firefox extension?
     - (Firefox) extensions are sandboxed to increase safety in cases of malicious or malfunctioning code. This means they cannot freely access the Discord IPC socket
