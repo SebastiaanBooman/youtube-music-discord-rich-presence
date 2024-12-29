@@ -79,25 +79,14 @@ func (server *Server) ReceiveSongData(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	var timeLeft time.Duration = totalSeconds - elapsedSeconds
-	if timeLeft < time.Duration(15) && songData.Playing {
-		// Discord has a 15 second time-out limit on rich presence updates
-		fmt.Fprint(w, "Current song has less than 15 seconds of playtime left. Not updating rich presence.")
-		return
-	}
-
-	var timeToWait time.Duration
-	var timeSinceLastUpdate time.Duration = updateTime.Sub(server.LastUpdatedTime)
-	if timeSinceLastUpdate < (15 * time.Second) {
-		timeToWait = (15 * time.Second) - timeSinceLastUpdate
-	}
-
 	smallImageKey := "mozilla-firefox"
 	smallText := "Mozilla Firefox"
 	if !songData.Playing {
 		smallImageKey = "play-button-icon"
 		smallText = "paused"
 	}
+
+	var timeLeft time.Duration = totalSeconds - elapsedSeconds
 
 	server.SongDataMutex.Lock()
 	server.LastUpdatedTime = updateTime
@@ -109,7 +98,7 @@ func (server *Server) ReceiveSongData(w http.ResponseWriter, r *http.Request) {
 		EndTime:       updateTime.Add(timeLeft),
 	}
 	server.SongDataMutex.Unlock()
-	server.UpdateRichPresence(timeToWait)
+	server.UpdateRichPresence()
 
 	// Kill the rich presence if no new song has been playing for 15 seconds and paused
 	if !songData.Playing {
@@ -165,11 +154,9 @@ func convertTimeDataToSeconds(timeData string) (time.Duration, error) {
 	return time.Duration(totalSeconds) * time.Second, nil
 }
 
-// TODO: Probably do not need to handle waiting for `waitTime`, as discord supposedly queues statuses
-func (server *Server) UpdateRichPresence(waitTime time.Duration) {
+func (server *Server) UpdateRichPresence() {
 	// TODO: negating this does not acquire the lock ?
 	if server.UpdatePendingMutex.TryLock() {
-		time.Sleep(waitTime)
 		server.SongDataMutex.Lock()
 		discordrpc.SetSongActivity(server.SongPresenceInformation)
 		server.SongDataMutex.Unlock()
